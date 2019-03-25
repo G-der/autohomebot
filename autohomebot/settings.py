@@ -123,11 +123,11 @@ ITEM_PIPELINES = {
 # HTTPCACHE_IGNORE_HTTP_CODES = []
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
-# 广度优先
-DEPTH_PRIORITY = 1
-SCHEDULER_DISK_QUEUE = 'scrapy.squeues.PickleFifoDiskQueue'
-SCHEDULER_MEMORY_QUEUE = 'scrapy.squeues.FifoMemoryQueue'
+# # 广度优先
+# DEPTH_PRIORITY = 1
+# SCHEDULER_DISK_QUEUE = 'scrapy.squeues.PickleFifoDiskQueue'
+# SCHEDULER_MEMORY_QUEUE = 'scrapy.squeues.FifoMemoryQueue'
 
 # 禁止重定向
-REDIRECT_ENABLED = False  # 关掉重定向, 不会重定向到新的地址
-HTTPERROR_ALLOWED_CODES = [301, 302]  # 返回301, 302时, 按正常返回对待, 可以正常写入cookie
+# REDIRECT_ENABLED = False  # 关掉重定向, 不会重定向到新的地址
+# HTTPERROR_ALLOWED_CODES = [301, 302]  # 返回301, 302时, 按正常返回对待, 可以正常写入cookie

@@ -54,6 +54,7 @@ class niumoLT(CrawlSpider):
 
     def parse_content(self, response):
         """解析页面"""
+        response.encoding("utf8")
         # self.info('牛摩网:[{}]、.状态:[{}]'.format(response.url, response.status))
         sonbbs_name = response.xpath('//div[@class="navigations"]/a[4]/text()').extract_first()
         if sonbbs_name is None:

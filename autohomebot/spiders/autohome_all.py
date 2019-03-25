@@ -11,27 +11,29 @@ from autohomebot.items import BaseItem
 
 class AutoHomeBBS(CrawlSpider):
     name = 'qczj'
-    allowed_domains = ["club.autohome.com.cn"]
+    # allowed_domains = ["club.autohome.com.cn"]
     start_urls = [
         # "https://club.autohome.com.cn/bbs/forum-o-200063-1.html",  # 摩托车论坛
         # "https://club.autohome.com.cn/bbs/forum-o-210063-1.html",  # 宝马
         # "https://club.autohome.com.cn/bbs/forum-o-210163-1.html",  # 哈雷
         # "https://club.autohome.com.cn/bbs/forum-o-210263-1.html",  # 杜卡迪
         # "https://club.autohome.com.cn/bbs/forum-o-210363-1.html",  # 贝纳利
-        "https://club.autohome.com.cn/bbs/forum-o-210463-1.html",  # 铃木
-        "https://club.autohome.com.cn/bbs/forum-o-210563-1.html",  # 雅马哈
+        # "https://club.autohome.com.cn/bbs/forum-o-210463-1.html",  # 铃木
+        # "https://club.autohome.com.cn/bbs/forum-o-210563-1.html",  # 雅马哈
         # "https://club.autohome.com.cn/bbs/forum-o-210663-1.html",  # KTM
         # "https://club.autohome.com.cn/bbs/forum-o-210763-1.html",  # 本田
+        'https://club.autohome.com.cn/bbs/forum-o-210763-1.html?qaType=-1#pvareaid=101061'
         # "https://club.autohome.com.cn/bbs/forum-o-210863-1.html",  # 春风
         # "https://club.autohome.com.cn/bbs/forum-o-210963-1.html"   # 川崎
     ]
-    pages = LinkExtractor(allow="/bbs/forum-o",
-                          restrict_xpaths='//div[@class="pages"]')
-    links = LinkExtractor(allow="/bbs/thread")
-
+    pages = LinkExtractor(allow="/bbs/forum-o-",
+                          restrict_xpaths=['//div[@class="pagearea"]'])
+    links = LinkExtractor(allow="/bbs/thread",
+                          restrict_xpaths=['//div[@id="subcontent"]', '//div[@class="pages"]']
+                          )
     rules = [
-        Rule(pages, follow=True),
-        Rule(links, callback="parseAutoBBS", follow=True)
+        Rule(link_extractor=pages, follow=True),
+        Rule(link_extractor=links, callback="parseAutoBBS", follow=True)
     ]
 
     def info(self, message, isPrint=True):
@@ -60,6 +62,14 @@ class AutoHomeBBS(CrawlSpider):
 
     def parseAutoBBS(self, response):
         try:
+            item = BaseItem()
+            # TODO 检测是否被重定向，若爬其他论坛需修改此处
+            html = str(response.body)
+            if "本田摩托车论坛" not in html:
+                item['comment_url'] = response.url
+                item['collection'] = "test"
+                yield item
+                return
             title = response.xpath('//div[@id="consnav"]/span[4]/text()').extract_first()
             bbsname = response.xpath('//div[@id="consnav"]/span[2]/a/text()').extract_first()
             for each in response.xpath('//div[@id="maxwrap-reply"]/div[@class="clearfix contstxt outer-section"]'):
@@ -72,7 +82,6 @@ class AutoHomeBBS(CrawlSpider):
                 comtpath = each.xpath('.//div[@class="x-reply font14"]')
                 comtstr = comtpath.xpath('string(.)').extract_first().strip()
 
-                item = BaseItem()
                 item['title'] = title
                 item['bbs_name'] = '汽车之家'
                 item['sonbbs_name'] = bbsname
@@ -82,7 +91,7 @@ class AutoHomeBBS(CrawlSpider):
                 item['push_time'] = pushtime
                 item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 item['car_type'] = None
-                item['collection'] = "汽车之家(竞品)"
+                item['collection'] = "汽车之家(test)"
                 item['usergender'] = usermsg[0]
                 item['userlocation'] = usermsg[1]
                 item['userage'] = usermsg[2]

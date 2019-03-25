@@ -17,11 +17,15 @@ class ZhiHuSPider():
     def get_data(self, url):
         """获取json数据"""
         headers = {"authority": "www.zhihu.com",
-                    # 'Host': 'www.zhihu.com',
-                    'Referer': 'https://www.zhihu.com/',
-                    "user-agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"
-                }
+                   # 'Host': 'www.zhihu.com',
+                   'Content-Type': 'ext/html;charset=utf-8',
+                   'Referer': 'https://www.zhihu.com/',
+                   "user-agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"
+                   }
         response = requests.get(url=url, headers=headers)
+        # print(response.text)
+        # print(response.content)
+        # print(response.encoding)
         return response
 
     def parse_time(self, sec):
@@ -30,18 +34,21 @@ class ZhiHuSPider():
         otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
         return otherStyleTime
 
-    def wash(self,str):
+    def wash(self, str):
         """去除格式"""
-        return re.sub(r'<.*?>','',str)
+        return re.sub(r'<.*?>', '', str)
 
     def parse_comment(self, type, id, title):
         """解析评论"""  # answers
         comment_count = 0
         while True:
             time.sleep(1.5)
-            url = "https://www.zhihu.com/api/v4/{}/{}/root_comments?include=data%5B*%5D.author%2Ccollapsed%2Creply_to_author%2Cdisliked%2Ccontent%2Cvoting%2Cvote_count%2Cis_parent_author%2Cis_author&order=normal&limit=20&offset={}&status=open".format(type,id,comment_count)
+            url = 'https://www.zhihu.com/api/v4/{}/{}/comments?include=data%5B%2A%5D.author%2Ccollapsed%2Creply_to_author%2Cdisliked%2Ccontent%2Cvoting%2Cvote_count%2Cis_parent_author%2Cis_author&limit=10&offset={}&order=reverse&status=open'.format(
+                type, id, comment_count)
             response = self.get_data(url)
+            response.encoding = 'utf8'  #
             comment_data = json.loads(response.text)
+            # print(response.text)
             print("正在解析评论:{}".format(url))
             for obj in comment_data["data"]:
                 item = {}
@@ -59,19 +66,18 @@ class ZhiHuSPider():
                     item["userlocation"] = None  # 用户所在地
                     item["push_time"] = self.parse_time(obj["created_time"])  # 发表时间
                     item["comment_detail"] = self.wash(obj["content"])  # 评论详情
-                    item["comment_url"] = obj["url"]  # 评论网址
+                    item["comment_url"] = obj["url"]  # TODO 评论网址无法访问，应返回问题网址
                     item["catch_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 抓取时间
                     item["collection"] = self.kw + "(知乎)"  # 表名
                     item["car_type"] = None  # 车型
-                    # item["data_from"] = '知乎'
                     item["bbs_name"] = "知乎"
                     item["sonbbs_name"] = None
                     item["userage"] = None
                     self.db[item['collection']].insert(dict(item))
                 except Exception as e:
-                    print("获取评价失败【URL】:{},错误信息:{}".format(obj["url"],e))
+                    print("获取评价失败【URL】:{},错误信息:{}".format(obj["url"], e))
             if comment_data["paging"]["is_end"] is False:  # 尝试获取下一页链接
-                comment_count += 20
+                comment_count += 10
             else:
                 break
 
@@ -82,6 +88,7 @@ class ZhiHuSPider():
             url = "https://www.zhihu.com/api/v4/search_v3?t=general&q={}&correction=1&offset={}&limit=10&lc_idx=13&show_all_topics=0&search_hash_id=18f445502a39ec0c1e5a85a60b366812&vertical_info=0%2C1%2C1%2C0%2C0%2C0%2C0%2C0%2C0%2C1".format(
                 self.kw, result_count)
             response = self.get_data(url)
+            response.encoding = 'utf8'
             time.sleep(3)
             print("正在解析第【{}】页数据...".format(page_count))
             print(url)
@@ -122,7 +129,7 @@ class ZhiHuSPider():
                         if obj["object"]["comment_count"] is not 0:
                             type = type + "s"
                             id = obj["object"]["id"]
-                            self.parse_comment(type,id,item["title"])
+                            self.parse_comment(type, id, item["title"])
                     except:
                         pass
                 except Exception as e:
@@ -134,6 +141,5 @@ class ZhiHuSPider():
 
 
 if __name__ == '__main__':
-    spider = ZhiHuSPider("光阳劲丽110")
+    spider = ZhiHuSPider("悦酷GZ150_test")
     spider.main()
-

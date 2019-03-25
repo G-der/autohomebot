@@ -18,7 +18,7 @@ html = etree.HTML(response.text)
 for each in html.xpath('//div[@id="maxwrap-reply"]/div[@class="clearfix contstxt outer-section"]'):
     try:
         commentpath = each.xpath('.//div[@class="x-reply font14"]')[0]
-        comtstr = commentpath.xpath('string(.)').trip()
+        comtstr = commentpath.xpath('string(.)').strip()
         print(comtstr)
     except Exception as e:
         print(e)

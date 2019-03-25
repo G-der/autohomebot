@@ -7,26 +7,31 @@ from autohomebot.items import BaseItem
 import requests
 from lxml import etree
 
+
 class MotuomiSpider(CrawlSpider):
     # spider的唯一名称
     name = 'mtm'
     allowed_domains = ["motorcycle.sh.cn"]
     # 开始爬取的url
     start_urls = [
-        "http://motorcycle.sh.cn/forum.php?gid=3",  # 摩托车论坛
-        "http://motorcycle.sh.cn/forum.php?gid=171",  # 摩托车整车厂家专区
+        # "http://motorcycle.sh.cn/forum.php?gid=3",  # 摩托车论坛
+        # "http://motorcycle.sh.cn/forum.php?gid=171",  # 摩托车整车厂家专区
         "http://motorcycle.sh.cn/forum.php?gid=17",  # 各地摩托车友交流区
+        "http://motorcycle.sh.cn/forum-102-1.html",  # 五羊本田骑式车讨论区
+        "http://motorcycle.sh.cn/forum-144-1.html",  # 五羊本田-踏板车讨论专区
+        "http://motorcycle.sh.cn/forum-113-1.html",  # 五羊本田-弯梁车讨论专区
     ]
 
     # 从页面需要提取的url 链接(link)
-    forums = LinkExtractor(allow="forum-")  # restrict_xpaths='//div[@class="pg"]'，
-    links = LinkExtractor(restrict_xpaths=['//tbody[starts-with(@id,"normalthread_")]', '//div[@class="pg"]'],
-                          allow="thread-")
+    forums = LinkExtractor(allow="forum-",
+                           restrict_xpaths=['//table[@class="fl_tb"]', '//div[@class="pg"]'])  # restrict_xpaths='//div[@class="pg"]'，
+    links = LinkExtractor(allow="thread-",
+                          restrict_xpaths=['//tbody[starts-with(@id,"normalthread_")]', '//div[@class="pg"]'],)
 
     # 设置解析link的规则，callback是指解析link返回的响应数据的的方法
     rules = [
-        Rule(link_extractor=forums, follow=True),
-        Rule(link_extractor=links, callback="parseContent", follow=True)
+        Rule(link_extractor=links, callback="parseContent", follow=True),
+        Rule(link_extractor=forums, follow=True)
     ]
 
     def info(self, message, isPrint=True):
@@ -67,7 +72,8 @@ class MotuomiSpider(CrawlSpider):
                 username = each.xpath('.//div[@class="authi"]/a[@class="xw1"]/text()').extract_first()
                 if username is None:
                     continue
-                userurl = 'http://motorcycle.sh.cn/' + each.xpath('.//div[@class="authi"]/a[@class="xw1"]/@href').extract_first()
+                userurl = 'http://motorcycle.sh.cn/' + each.xpath(
+                    './/div[@class="authi"]/a[@class="xw1"]/@href').extract_first()
                 usermsg = self.parse_user(userurl)
                 # 获取评论详情
                 comt_path = each.xpath('.//td[@class="t_f"]')
@@ -87,43 +93,62 @@ class MotuomiSpider(CrawlSpider):
                 item['push_time'] = pushtime
                 item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 item['car_type'] = None
-                item['collection'] = "摩托迷"
+                item['collection'] = "摩托迷(3.22)"
                 item['usergender'] = usermsg[0]
                 item['userlocation'] = usermsg[1]
+                if item['userlocation'] is None and "摩友交流区" in sonbbs_name:
+                    item['userlocation'] = sonbbs_name.replace("摩友交流区",'')
                 item['userage'] = usermsg[2]
                 yield item
         except Exception as e:
             self.error('【parse_detail出错】url:{}; line{}:{}'.format(response.url, e.__traceback__.tb_lineno, e))
 
     def parse_user(self, url):
-        response = etree.HTML(requests.get(url).text)
-        usermsg = []
-        # 性别
-        usergender = response.xpath('//ul[@class="pf_l cl"]//em[contains(text(),"性别")]/../text()')
-        if usergender:
-            usergender = usergender[0]
-        else:
-            usergender = None
-        usermsg.append(usergender)
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Cache-Control': 'max-age=0',
+            'Connection': 'keep-alive',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
+        }
+        api_url = 'http://127.0.0.1:5555/random'  # API接口
+        r = requests.get(api_url, timeout=8)
+        proxies = {
+            'https': "https://" + r.text
+        }
+        response = requests.get(url, headers=headers, proxies=proxies)
+        if response.status_code == 200:
+            html = etree.HTML(response.text)
+            usermsg = []
+            # 性别
+            usergender = html.xpath('//ul[@class="pf_l cl"]//em[contains(text(),"性别")]/../text()')
+            if usergender:
+                usergender = usergender[0]
+            else:
+                usergender = None
+            usermsg.append(usergender)
 
-        # 所在地
-        userlocation = response.xpath('//ul[@class="pf_l cl"]//em[contains(text(),"居住地")]/../text()')
-        if userlocation:
-            userlocation = userlocation[0]
-        else:
-            userlocation = None
-        usermsg.append(userlocation)
+            # 所在地
+            userlocation = html.xpath('//ul[@class="pf_l cl"]//em[contains(text(),"居住地")]/../text()')
+            if userlocation:
+                userlocation = userlocation[0]
+            else:
+                userlocation = None
+            usermsg.append(userlocation)
 
-        # 年龄
-        userbirthday = response.xpath('//ul[@class="pf_l cl"]//em[contains(text(),"生日")]/../text()')
-        if userbirthday:
-            try:
-                userbirthday = userbirthday[0]
-                birthyear = int(re.match('\d+', userbirthday).group())
-                age = str(date.today().year - birthyear)
-                usermsg.append(age)
-            except:
+            # 年龄
+            userbirthday = html.xpath('//ul[@class="pf_l cl"]//em[contains(text(),"生日")]/../text()')
+            if userbirthday:
+                try:
+                    userbirthday = userbirthday[0]
+                    birthyear = int(re.match('\d+', userbirthday).group())
+                    age = str(date.today().year - birthyear)
+                    usermsg.append(age)
+                except:
+                    usermsg.append(None)
+            else:
                 usermsg.append(None)
+            return usermsg
         else:
-            usermsg.append(None)
-        return usermsg
+            return [None, None, None]

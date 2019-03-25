@@ -100,7 +100,7 @@ def get_url_list(list_url, headers, proxy):
         try:
             topic_list_url = []
             club_list = requests.get(list_url, headers=headers, timeout=8, proxies=proxy)
-            if '铃木摩托车论坛' in str(club_list.text):
+            if '本田摩托车论坛' in str(club_list.text):
                 print('解析成功，正在获取帖子链接', list_url)
                 pattern = re.compile('<dl.*?list_dl.*?lang.*?">.*?<a.*?href="(.*?)">.*?</dl>', re.S)
                 items = re.findall(pattern, club_list.text)
@@ -164,184 +164,104 @@ def get_one_page(url, headers, proxy):
         return get_one_page(url, headers, proxy)
 
 
-def parse_one_page(url,html):
-    #html = str(html)
-    tree = etree.HTML(html)
-    topic = tree.xpath('//*[@id="F0"]')
-    TopicInfo = {}
-    if topic:
-        # print('普通帖子')
-        #版块信息
-        forum = tree.xpath('//*[@id="consnav-root"]/div/span[1]/a/text()')[0]
-        print('版块：' + forum)
-        TopicInfo['sonbbs_name'] = forum
-        for info in topic:
-            TopicInfo['comment_url'] = url
-            print('帖子链接：' + url)
+def parse_one_page(url, html):
+    print("解析帖子", url)
+    # html = str(html)
+    if '本田摩托车论坛' not in html:
+        item = {'collection': "汽车之家(3.19)", 'comment_url': url}
+        return save_to_db(item)
+    try:
+        tree = etree.HTML(html)
+        topic = tree.xpath('//*[@id="F0"]')  # 获取主贴
+        TopicInfo = {}
+        if topic:
+            forum = tree.xpath('//*[@id="consnav-root"]/div/span[1]/a/text()')[0]
+            # print('版块：' + forum)
+            TopicInfo['sonbbs_name'] = forum
+            for info in topic:
+                TopicInfo['comment_url'] = url
+                print('帖子链接：' + url)
+                topic_title = info.xpath('//*[@id="consnav"]/span[4]/text()')[0]
+                TopicInfo['title'] = topic_title
+                print('标题：' + topic_title)
+                comtpath = info.xpath('.//div[@class="conttxt"]')[0]
+                comtstr = comtpath.xpath('string(.)').strip()
+                TopicInfo['comment_detail'] = comtstr
+                topic_time = info.xpath('//*[@id="F0"]/div[3]/div[1]/span[2]/text()')[0]
+                # print('发布时间：' + str(topic_time))
+                TopicInfo['push_time'] = topic_time
+                # 楼主相关信息
+                user_name = info.xpath('//*[@id="F0"]/div[2]/ul[1]/li[1]/a/text()')[0].strip()
+                # print('用户名：' + user_name)
+                TopicInfo['username'] = user_name
+                user_from = info.xpath('//*[@id="F0"]/div[2]/ul[2]/li[6]/a/text()')
+                if user_from:
+                    user_from = user_from[0]
+                    # print('来自：' + user_from)
+                    TopicInfo['userlocation'] = user_from
+                else:
+                    # print('没有地区')
+                    TopicInfo['userlocation'] = None
+                TopicInfo['usergender'] = None
+                TopicInfo['userage'] = None
+                TopicInfo['bbs_name'] = '汽车之家'
+                TopicInfo['comment_url'] = url
+                TopicInfo['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                TopicInfo['car_type'] = None
+                TopicInfo['collection'] = "汽车之家(3.19)"
+                save_to_db(TopicInfo)
 
-            topic_title = info.xpath('//*[@id="consnav"]/span[4]/text()')[0]
-            TopicInfo['title'] = topic_title
-            print('标题：' + topic_title)
-
-            comtpath = info.xpath('.//div[@class="conttxt"]')[0]
+        title = tree.xpath('//div[@id="consnav"]/span[4]/text()')[0]
+        bbsname = tree.xpath('//div[@id="consnav"]/span[2]/a/text()')[0]
+        for each in tree.xpath('//div[@id="maxwrap-reply"]/div[@class="clearfix contstxt outer-section"]'):
+            username = each.xpath('.//li[@class="txtcenter fw"]/a/text()')[0].strip()
+            userloc = each.xpath('.//ul[@class="leftlist"]/li[6]/a/text()')
+            uid = each.xpath('./@uid')[0]
+            userurl = "https://i.autohome.com.cn/{}/info".format(uid)
+            usermsg = [None, None, None]  # self.parse_user(userurl)
+            pushtime = each.xpath('.//span[@xname="date"]/text()')[0]
+            comtpath = each.xpath('.//div[@class="x-reply font14"]')[0]
             comtstr = comtpath.xpath('string(.)').strip()
-            TopicInfo['comment_detail'] = comtstr
-
-            topic_time = info.xpath('//*[@id="F0"]/div[3]/div[1]/span[2]/text()')[0]
-            print('发布时间：'+str(topic_time))
-            TopicInfo['push_time'] = topic_time
-
-            # topic_views = info.xpath('//*[@id="x-views"]/text()')[0]
-            # TopicInfo['topic_views'] = topic_views
-            # print('点击：' + topic_views)
-            #
-            # topic_replys = info.xpath('//*[@id="x-replys"]/text()')[0]
-            # print('回复：' + topic_replys)
-            # TopicInfo['topic_replys'] = topic_replys
-            #
-            # topic_seal = info.xpath('//*[@id="seal"]/@class')
-            # if topic_seal:
-            #     topic_seal = topic_seal[0]
-            #     topic_seal = topic_seal.split()[1]
-            #     if topic_seal == 'Jing':
-            #         topic_seal = '精华'
-            #     if topic_seal == 'Jian':
-            #         topic_seal = '推荐'
-            #     if topic_seal == 'Editjing':
-            #         topic_seal = '论坛精选'
-            #     if topic_seal == 'JianEditjing':
-            #         topic_seal = '推荐，论坛精选'
-            #     if topic_seal == 'JingEditjing':
-            #         topic_seal = '精华，论坛精选'
-            #     if topic_seal == 'JingEditshou':
-            #         topic_seal = '精华，首页推荐'
-            # else:
-            #     topic_seal = 'None'
-            # print('效果帖：' + topic_seal)
-            # TopicInfo['topic_seal'] = topic_seal
-
-
-        #楼主相关信息
-            user_name = info.xpath('//*[@id="F0"]/div[2]/ul[1]/li[1]/a/text()')[0].strip()
-            print('用户名：' + user_name)
-            TopicInfo['username'] = user_name
-
-            # user_url = info.xpath('//*[@id="F0"]/div[2]/ul[1]/li[1]/a/@href')[0].split('/home.html')[0]
-            # print('个人主页：https:' + user_url)
-            # TopicInfo['user_url'] = user_url
-            #
-            # user_topic_num =info.xpath('//*[@id="F0"]/div[2]/ul[2]/li[4]/a[1]/text()')[0].split('帖')[0]
-            # print('总发帖数：' + user_topic_num)
-            # TopicInfo['user_topic_num'] = user_topic_num
-            #
-            # user_replys_num = info.xpath('//*[@id="F0"]/div[2]/ul[2]/li[4]/a[2]/text()')[0].split('回')[0]
-            # print('总回帖数：' + user_replys_num)
-            # TopicInfo['user_replys_num'] = user_replys_num
-
-            user_from = info.xpath('//*[@id="F0"]/div[2]/ul[2]/li[6]/a/text()')
-            if user_from:
-                user_from = user_from[0]
-                print('来自：' + user_from)
-                TopicInfo['userlocation'] = user_from
+            item = {}
+            item['title'] = title
+            item['bbs_name'] = '汽车之家'
+            item['sonbbs_name'] = bbsname
+            item['username'] = username
+            item['comment_detail'] = comtstr
+            item['comment_url'] = url
+            item['push_time'] = pushtime
+            item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            item['car_type'] = None
+            item['collection'] = "汽车之家(3.19)"
+            item['usergender'] = usermsg[0]
+            if userloc:
+                item['userlocation'] = userloc[0]
             else:
-                print('没有地区')
-                TopicInfo['userlocation'] = None
-            TopicInfo['bbs_name'] = '汽车之家'
+                item['userlocation'] = None
+            item['userage'] = usermsg[2]
+            save_to_db(item)
 
-            TopicInfo['comment_url'] = url
-            TopicInfo['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            TopicInfo['car_type'] = None
-            TopicInfo['collection'] = "汽车之家(竞品)"
-            save_to_db(TopicInfo)
+        if tree.xpath('//a[@class="afpage"]'):
+            headers = {
+                'User-Agent': get_randon_ua(),
+                'Host': 'club.autohome.com.cn',
+                'Upgrade - Insecure - Requests': '1',
+                'Accept': 'text / html, application / xhtml + xml, application / xml;q = 0.9, image / webp, image / apng, * / *;q = 0.8',
+                'Accept - Encoding': 'gzip',
+                'Accept - Language': 'zh - CN, zh;q = 0.9, en;q = 0.8',
+                'Cache - Control': 'max - age = 0',
+                'Connection': 'close',
+            }
+            proxy = {'https': 'https://' + str(get_proxie())}
+            url = 'https://club.autohome.com.cn' + tree.xpath('//a[@class="afpage"]/@href')[1]
+            html = get_one_page(url, headers, proxy)
+            if html:
+                parse_one_page(url, html)
+    except Exception as e:
+        print("解析失败:",'url',e.__traceback__.tb_lineno,e)
+        item = {'collection': "汽车之家(3.19)", 'comment_url': "解析失败:"+url}
+        return save_to_db(item)
 
-    title = tree.xpath('//div[@id="consnav"]/span[4]/text()')[0]
-    bbsname = tree.xpath('//div[@id="consnav"]/span[2]/a/text()')[0]
-    for each in tree.xpath('//div[@id="maxwrap-reply"]/div[@class="clearfix contstxt outer-section"]'):
-        username = each.xpath('.//li[@class="txtcenter fw"]/a/text()')[0].strip()
-        userloc = each.xpath('.//ul[@class="leftlist"]/li[6]/a/text()')
-        uid = each.xpath('./@uid')[0]
-        userurl = "https://i.autohome.com.cn/{}/info".format(uid)
-        usermsg = [None, None, None]  # self.parse_user(userurl)
-        pushtime = each.xpath('.//span[@xname="date"]/text()')[0]
-        comtpath = each.xpath('.//div[@class="x-reply font14"]')[0]
-        comtstr = comtpath.xpath('string(.)').strip()
-        item = {}
-        item['title'] = title
-        item['bbs_name'] = '汽车之家'
-        item['sonbbs_name'] = bbsname
-        item['username'] = username
-        item['comment_detail'] = comtstr
-        item['comment_url'] = url
-        item['push_time'] = pushtime
-        item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        item['car_type'] = None
-        item['collection'] = "汽车之家(竞品)"
-        item['usergender'] = usermsg[0]
-        if userloc:
-            item['userlocation'] = userloc[0]
-        else:
-            item['userlocation'] = None
-        item['userage'] = usermsg[2]
-        save_to_db(item)
-
-
-            # pattern = re.compile(
-            #     '<li.*?<a class=".*?/bbs/carOwnerCamp.html".*?title=\'我要申请成为认证车主\'></a><a.*?target="_blank" title=".*?" href=".*?">(.*?)</a></li>',
-            #     re.S)
-            # pattern0 = re.compile('div class="clearfix contstxt outer-section".*?<!--end楼主-->', re.S)
-            # string = re.findall(pattern0, html)
-            # if string:
-            #     for user in string:
-            #         user_car = re.findall(pattern, user)
-            #         if user_car:
-            #             print('认证车型：', user_car)
-            #             TopicInfo['user_car'] = user_car
-            #         else:
-            #             print('非认证车主')
-            #             TopicInfo['user_car'] = '非认证车主'
-
-    # else:
-    #     print('视频帖子')
-    #     topic = tree.xpath('/html/body/div[2]/div[2]/div[1]/div[1]')
-    #     #TopicInfo = {}
-    #     for info in topic:
-    #         print('帖子链接：' + url)
-    #         TopicInfo['topic_url'] = url
-    #         forum = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[1]/a[1]/text()')[0]
-    #         print('版块：' + forum)
-    #         TopicInfo['forum'] = forum
-    #         topic_title = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[1]/span[1]/text()')[0]
-    #         print('标题：' + topic_title)
-    #         TopicInfo['topic_title'] = topic_title
-    #         topic_time = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[3]/div[2]/span[1]/text()')[0]
-    #         print('发布时间：'+ topic_time)
-    #         TopicInfo['topic_time'] = topic_time
-    #         topic_views = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[3]/div[2]/span[3]/text/text()')[0]
-    #         print('点击：' + topic_views)
-    #         TopicInfo['topic_views'] = topic_views
-    #         topic_replys = info.xpath('//*[@id="replyCount"]/text()')[0]
-    #         print('回复：' + topic_replys)
-    #         TopicInfo['topic_replys'] = topic_replys
-    #         topic_seal = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[1]/span[position()>1]/text()')
-    #         if topic_seal:
-    #             topic_seal = topic_seal
-    #         else:
-    #             topic_seal = 'None'
-    #         print('效果帖：',topic_seal)
-    #         TopicInfo['topic_seal'] = topic_seal
-    #         user_name = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[4]/a[2]/text()')[0].strip()
-    #         print('用户名：' + user_name)
-    #         TopicInfo['user_name'] = user_name
-    #         user_url = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[4]/a[2]/@href')[0].split('/home.html')[0]
-    #         print('个人主页：https:' + user_url)
-    #         TopicInfo['user_url'] = user_url
-    #         followCount = info.xpath('//*[@id="followCount"]/text()')[0].split('帖')[0]
-    #         print('视频关注：' + followCount)
-    #         TopicInfo['followCount'] = followCount
-    #         praise_num = info.xpath('/html/body/div[2]/div[2]/div[1]/div[1]/div[4]/div[2]/div[2]/span[2]/text()')[0].split('回')[0]
-    #         print('视频点赞：' + praise_num)
-    #         TopicInfo['praise_num'] = praise_num
-    # return TopicInfo
 
 
 # def save_to_csv(item):
@@ -371,8 +291,8 @@ def save_to_db(item):
 
 
 def get_one_url(page):
-    #for x in page:
-    url = 'https://club.autohome.com.cn/bbs/forum-o-210463-{}.html?orderby=dateline'.format(page)
+    # for x in page:
+    url = 'https://club.autohome.com.cn/bbs/forum-o-210763-{}.html?orderby=dateline'.format(page)
     return url
 
 
@@ -387,28 +307,24 @@ def main(page):
         'Cache - Control': 'max - age = 0',
         'Connection': 'close',
     }
-    proxy = {'https':'https://' + str(get_proxie())}
+    proxy = {'https': 'https://' + str(get_proxie())}
     url_list = get_one_url(page)
     urls = get_url_list(url_list, headers, proxy)
     for url in urls:
-        print('帖子：',url)
+        print('帖子：', url)
         html = get_one_page(url, headers, proxy)
         if html:
             parse_one_page(url, html)
-            # if info:
-            #     save_to_db(info)
-            #     time.sleep(1)
-            #     print(time.strftime('%Y.%m.%d %H:%I:%M:%S', time.localtime(time.time())))
 
 
 if __name__ == '__main__':
     start_time = time.time()
     groups = []
-    for x in range(40, 1, -1):
+    for x in range(58, 1, -1):
         groups.append(x)  # [x for x in range(89,0,-1)]
-    pool = Pool(1)
+    pool = Pool(3)
     pool.map(main, groups)
     pool.close()
     pool.join()
     end_time = time.time()
-    print(start_time, end_time-start_time)
+    print(start_time, end_time - start_time)

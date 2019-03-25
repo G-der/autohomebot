@@ -1,37 +1,17 @@
 import json
 from datetime import datetime
-from scrapy.spiders import CrawlSpider, Rule
-from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import Spider
 import scrapy
 import re
 import time
-from autohomebot.items import NiumoKBItem, BaseItem
+from autohomebot.items import BaseItem
 
 
-class BDTieba(CrawlSpider):
-    name = "bdtb"
-    allowed_domains = ["tieba.baidu.com"]
-    start_urls = [
-        # "https://tieba.baidu.com/f?kw=%E4%BD%B3%E5%BE%A1&ie=utf-8"  # 佳御吧 pn<=1100
-        # "https://tieba.baidu.com/f?kw=%E4%BA%94%E7%BE%8A%E6%9C%AC%E7%94%B0&ie=utf-8"  # 五羊本田总吧 pn<=3650
-        # "https://tieba.baidu.com/f?kw=冈本&ie=utf-8"  # 冈本吧 pn<=500
-        # "https://tieba.baidu.com/f?kw=%D4%C3%BF%E1",  # 悦酷吧
-        # "https://tieba.baidu.com/f?ie=utf-8&kw=力帆kp150",  # 力帆kp150吧
-        # "https://tieba.baidu.com/f?ie=utf-8&kw=雅马哈巧格i",  # 雅马哈巧格i吧
-        # "https://tieba.baidu.com/f?ie=utf-8&kw=光阳劲丽",  # 光阳劲丽吧
-        # "https://tieba.baidu.com/f?ie=utf-8&kw=铃木优友",  # 铃木优友吧
-        # "https://tieba.baidu.com/f?ie=utf-8&kw=雅马哈尚领",  # 雅马哈尚领吧
-        "https://tieba.baidu.com/p/5629760278?pn=2"
-    ]
-
-    pages = LinkExtractor(allow="pn=", restrict_xpaths='//div[@id="frs_list_pager"]')
-    links = LinkExtractor(allow="/p/\d+", deny='see_lz=1',
-                          restrict_xpaths=('//ul[@id="thread_list"]', '//ul[@class="l_posts_num"]'))
-
-    rules = [
-        Rule(pages, follow=True),
-        Rule(links, callback="parse_reply", follow=True)
-    ]
+class BaiDuTieBaSearch(Spider):
+    name = 'baidusearch'
+    # allowed_domains = ""
+    kw = '三樱汽车部件+东莞'  # 丰田合成（佛山）橡塑  上海大道包装隔热材料 阿尔发(广州)汽车配件
+    start_urls = ["http://tieba.baidu.com/f/search/res?qw={}&ie=utf-8".format(kw)]
 
     def info(self, message, isPrint=True):
         # 控制台显示消息
@@ -57,7 +37,19 @@ class BDTieba(CrawlSpider):
         if logOutput == True:
             self.logger.errorb(message)
 
-    def parse_reply(self, response):
+    def parse(self, response):
+        for item in response.xpath('//div[@class="s_post"]'):
+            url = item.xpath('./span/a/@href').extract_first()
+            p_num = re.search(r'p/(\d+)', url).group(1)
+            base_url = "http://tieba.baidu.com"
+            full_url = base_url +url
+            yield scrapy.Request(url=full_url,callback=self.parse_tiezi)
+        next_pg = response.xpath('//a[text()="下一页>"]/@href')
+        if next_pg:
+            next_url = base_url + next_pg.extract_first()
+            yield scrapy.Request(url=next_url,callback=self.parse)
+
+    def parse_tiezi(self,response):
         bbsname = response.xpath('//div[@class="card_title "]/a/text()').extract_first()
         title = response.xpath('//h3/text()').extract_first()  # 某些吧标题在h1
         if title is None:
@@ -68,7 +60,12 @@ class BDTieba(CrawlSpider):
                 pushtime = each.xpath('.//span[@class="tail-info"][3]/text()').extract_first()  # 移动端
                 if pushtime is None:
                     pushtime = each.xpath('.//span[@class="tail-info"][2]/text()').extract_first()  # PC端
-                # pushtime = json.loads(data)["content"]["date"]
+                if pushtime is None:
+                    try:
+                        data = each.xpath('./@data-field').extract_first()
+                        pushtime = json.loads(data)["content"]["date"]
+                    except:
+                        continue
                 comtpath = each.xpath('.//div[starts-with(@id,"post_content_")]')
                 comtstr = comtpath.xpath('string(.)').extract_first()
                 if comtstr is None:
@@ -83,7 +80,7 @@ class BDTieba(CrawlSpider):
                 item['push_time'] = pushtime
                 item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 item['car_type'] = None
-                item['collection'] = "百度贴吧(test)"
+                item['collection'] = "百度贴吧搜索({})".format(self.kw)
                 item['usergender'] = None
                 item['userlocation'] = None
                 item['userage'] = None
@@ -124,11 +121,10 @@ class BDTieba(CrawlSpider):
                     item['push_time'] = pushtime
                     item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     item['car_type'] = None
-                    item['collection'] = "百度贴吧(test)"
+                    item['collection'] = "百度贴吧搜索({})".format(self.kw)
                     item['usergender'] = None
                     item['userlocation'] = None
                     item['userage'] = None
                     yield item
         except Exception as e:
             self.error('【无评论】url:{}; line{}:{}'.format(response.url, e.__traceback__.tb_lineno, e))
-

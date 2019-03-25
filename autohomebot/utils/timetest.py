@@ -70,13 +70,24 @@ if __name__ == '__main__':
     # else:
     #     print(False)
     # time_compare()
-    start_time = '2019-1-1'
-    start_time = datetime.strptime(start_time, "%Y-%m-%d")
-    else_time = '												发表于 2009-12-16 10:19 																					'.strip()
-    else_time = else_time.replace("发表于 ",'')
-    push_time = datetime.strptime(else_time, "%Y-%m-%d %H:%S")
-    print(start_time)
-    print(push_time)
-    if push_time > start_time:
-        print(True)
+    # start_time = '2019-1-1'
+    # start_time = datetime.strptime(start_time, "%Y-%m-%d")
+    # else_time = '												发表于 2009-12-16 10:19 																					'.strip()
+    # else_time = else_time.replace("发表于 ",'')
+    # push_time = datetime.strptime(else_time, "%Y-%m-%d %H:%S")
+    # print(start_time)
+    # print(push_time)
+    # if push_time > start_time:
+    #     print(True)
+    # str = 1551260953
+    # timeArray = time.localtime(str)  # 秒数
+    # otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
+    # print(otherStyleTime)
 
+    time1 = str(string_toDatetime("2017-01-22"))
+    tiem2 = '2017-01-02'
+    if time1 > tiem2:
+        print(True)
+    else:
+        print(False)
+    time1 = datetime.date()
