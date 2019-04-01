@@ -19,7 +19,7 @@ NEWSPIDER_MODULE = 'autohomebot.spiders'
 PROXY_POOL_URL = 'http://127.0.0.1:5555/random'
 
 # 数据库连接地址
-MONGODB_URL = 'localhost'
+MONGODB_URL = 'absit1309'
 # 数据库名称
 MONGODB_NAME = 'autohome'
 

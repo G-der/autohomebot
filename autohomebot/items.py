@@ -114,3 +114,41 @@ class ArticleItem(scrapy.Item):
     catch_time = scrapy.Field()
     collection = scrapy.Field()  # 表名
 
+
+class ProduceItem(scrapy.Item):
+    # 商品名称
+    productTitle = scrapy.Field()
+    # 店铺名称
+    shopname = scrapy.Field()
+    # 商品价格
+    productPrice = scrapy.Field()
+    # 评价人
+    userInfo = scrapy.Field()
+    # 订单名称
+    orderInfoTitle = scrapy.Field()
+    # 订单评论时间
+    orderInfoTime = scrapy.Field()
+    # 评论内容
+    comment_con = scrapy.Field()
+    # 评论类型
+    comment_type = scrapy.Field()
+    # 商品ID
+    productID = scrapy.Field()
+    # 商品URL
+    productDetailUrl = scrapy.Field()
+    # 抓取时间
+    catch_time = scrapy.Field()
+    # 品牌
+    brand = scrapy.Field()
+    # 数据源
+    data_from = scrapy.Field()
+    # 商品名
+    productName = scrapy.Field()
+    # 好评数
+    haopingCount = scrapy.Field()
+    # 中评数
+    zhongpingCount = scrapy.Field()
+    # 差评数
+    chapingCount = scrapy.Field()
+
+

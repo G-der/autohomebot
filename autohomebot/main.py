@@ -1,3 +1,3 @@
 from scrapy import cmdline
 
-cmdline.execute("scrapy crawl baidusearch".split())
+cmdline.execute("scrapy crawl JD".split())

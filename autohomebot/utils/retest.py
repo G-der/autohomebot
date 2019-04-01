@@ -10,6 +10,22 @@ import re
 # url = re.sub('index\d+', 'index'+page_num, str3)
 # print(url)
 
-str4 = '2019年03月14日07:37  来源：'
-time_str = str4.replace('  来源：','')
-print(time_str)
+# str4 = '2019年03月14日07:37  来源：'
+# time_str = str4.replace('  来源：','')
+# print(time_str)
+
+# url = 'http://tieba.baidu.com/p/6026884976?pid=123955409703&cid=123957219373#123957219373'
+# new_url = url.split("?", 1)[0]
+# pid = re.search("pid=(\d+)",url.split("?", 1)[1]).group(1)
+# print(new_url)
+# print(pid)
+
+# dict1 = {'abc':1}
+# print(dict1.get("abc"))
+
+reply_str = "回复()"
+reply_num = re.search(r"\d+", reply_str)
+if reply_num:
+    print(True)
+
+
