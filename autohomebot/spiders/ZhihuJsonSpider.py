@@ -5,14 +5,16 @@ import requests
 import json
 import time
 from pymongo import MongoClient
+import multiprocessing
 
 
 class ZhiHuSPider():
     def __init__(self, kw):
         self.kw = kw
-        self.db_url = "127.0.0.1"  # 数据库url
+        self.db_url = "localhost"  # 数据库url
         self.db_name = "autohome"  # 数据库名
         self.db = MongoClient(self.db_url)[self.db_name]  # 数据库实例对象
+        self.start_time = "2017-01-01"
 
     def get_data(self, url):
         """获取json数据"""
@@ -57,22 +59,26 @@ class ZhiHuSPider():
                     item["username"] = obj["author"]["member"]["name"]  # 用户名
                     item["usergender"] = None  # 用户性别
                     try:
-                        if obj["object"]["author"]["member"]["gender"] is 0:
+                        if obj["object"]["author"]["member"]["gender"] == 0:
                             item["usergender"] = "女"
-                        elif obj["object"]["author"]["member"]["gender"] is 1:
+                        elif obj["object"]["author"]["member"]["gender"] == 1:
                             item["usergender"] = "男"
                     except:
                         pass
                     item["userlocation"] = None  # 用户所在地
                     item["push_time"] = self.parse_time(obj["created_time"])  # 发表时间
+
+                    if item["push_time"] < self.start_time:  # 若发表时间不符，废止
+                        continue
                     item["comment_detail"] = self.wash(obj["content"])  # 评论详情
                     item["comment_url"] = obj["url"]  # TODO 评论网址无法访问，应返回问题网址
                     item["catch_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 抓取时间
-                    item["collection"] = self.kw + "(知乎)"  # 表名
+                    item["collection"] = "(知乎)" + "自动驾驶" # 表名
                     item["car_type"] = None  # 车型
                     item["bbs_name"] = "知乎"
                     item["sonbbs_name"] = None
                     item["userage"] = None
+                    item["keyword"] = self.kw
                     self.db[item['collection']].insert(dict(item))
                 except Exception as e:
                     print("获取评价失败【URL】:{},错误信息:{}".format(obj["url"], e))
@@ -111,16 +117,19 @@ class ZhiHuSPider():
                         pass
                     item["userlocation"] = None  # 用户所在地
                     item["push_time"] = self.parse_time(obj["object"]["created_time"])  # 发表时间
+                    if item["push_time"] < self.start_time:
+                        continue
                     item["comment_detail"] = self.wash(obj["object"]["content"])  # 评论详情
                     item["comment_url"] = obj["object"]["url"]  # 评论网址
 
                     item["catch_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 抓取时间
-                    item["collection"] = self.kw + "(知乎)"  # 表名
+                    item["collection"] = "(知乎)" + "自动驾驶"  # 表名
                     item["car_type"] = None  # 车型
                     # item["data_from"] = '知乎'
                     item["bbs_name"] = "知乎"
                     item["sonbbs_name"] = None
                     item["userage"] = None
+                    item["keyword"] = self.kw
                     # 插入数据
                     self.db[item['collection']].insert(dict(item))
 
@@ -133,7 +142,7 @@ class ZhiHuSPider():
                     except:
                         pass
                 except Exception as e:
-                    print("解析失败,错误信息:", e.__traceback__.tb_lineno, e.__traceback__.tb_lasti)
+                    print("解析失败,错误信息:", e.__traceback__.tb_lineno, e)
             if search_data["paging"]["is_end"] is False:  # 尝试获取下一页链接
                 result_count += 10
             else:
@@ -141,5 +150,18 @@ class ZhiHuSPider():
 
 
 if __name__ == '__main__':
-    spider = ZhiHuSPider("悦酷GZ150_test")
-    spider.main()
+    KW_LIST = ["自动驾驶", "无人驾驶", "智能网联汽车",
+               "自动驾驶 L3级别", "自动驾驶 L4级别",
+               "无人出租车", "无人车", "自动驾驶 视觉融合",
+               "自动驾驶 V2X", "自动驾驶 激光雷达", "自动驾驶 深度学习",
+               "自动驾驶 高精度地图", "自动驾驶 路径规划", "自动驾驶 AI",
+               "自动驾驶 算法", "自动驾驶牌照", "自动驾驶示范区",
+               "自动驾驶 示范运营", "自动泊车", "自动驾驶 智慧交通",
+               "无人驾驶小镇", "自动驾驶 5G示范区", "自动驾驶 智能化"
+               ]
+    pool = multiprocessing.Pool(3)
+    for kw in KW_LIST:
+        spider = ZhiHuSPider(kw)
+        pool.apply_async(spider.main())
+    pool.close()
+    pool.join()

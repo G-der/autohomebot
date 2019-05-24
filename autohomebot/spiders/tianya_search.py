@@ -7,14 +7,24 @@ import requests
 from lxml import etree
 
 
+
 class TianyaForumSpider(Spider):
     name = 'tianya'
-    kw = "汽车"  # TODO 修改抓取关键字
-    start_urls = [
-        'http://search.tianya.cn/bbs?q={}&pn=1&s=6'.format(kw),  # 搜索，按时间排序
-    ]
+    KW_LIST = ["自动驾驶", "无人驾驶", "智能网联汽车",
+               "自动驾驶 L3级别", "自动驾驶 L4级别",
+               "无人出租车", "无人车", "自动驾驶 视觉融合",
+               "自动驾驶 V2X", "自动驾驶 激光雷达", "自动驾驶 深度学习",
+               "自动驾驶 高精度地图", "自动驾驶 路径规划", "自动驾驶 AI",
+               "自动驾驶 算法", "自动驾驶牌照", "自动驾驶示范区",
+               "自动驾驶 示范运营", "自动泊车", "自动驾驶 智慧交通",
+               "无人驾驶小镇", "自动驾驶 5G示范区", "自动驾驶 智能化"
+               ]
+    start_urls = []
+    for kw in KW_LIST: # TODO 修改抓取关键字,动态添加url
+        url = 'http://search.tianya.cn/bbs?q={}&pn=1&s=6'.format(kw) # 搜索，按时间排序
+        start_urls.append(url)
     base_url = 'http://bbs.tianya.cn'
-    start_time = "2019-03-01"
+    start_time = "2017-01-01"
 
     def info(self, message, isPrint=True):
         # 控制台显示消息
@@ -105,7 +115,7 @@ class TianyaForumSpider(Spider):
                     item["detail"] = art_path.xpath('string(.)').extract_first().strip()
                     item["url"] = response.url
                     item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                    item['collection'] = "天涯网"
+                    item['collection'] = "(天涯网)" + "自动驾驶"
                     item['kw'] = self.kw
                     item['type'] = None
                     yield item
@@ -134,7 +144,7 @@ class TianyaForumSpider(Spider):
 
                     item["url"] = response.url
                     item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                    item['collection'] = "天涯网"
+                    item['collection'] = "(天涯网)" + "自动驾驶"
                     item['kw'] = self.kw
                     item['type'] = None
                     yield item

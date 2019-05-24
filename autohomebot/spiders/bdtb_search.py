@@ -5,15 +5,19 @@ import scrapy
 import re
 import time
 from autohomebot.items import BaseItem
+from urllib import parse
+from autohomebot.utils import BD_serch_urls
+
 
 
 class BaiDuTieBaSearch(Spider):
-    start_time = "2018-01-01"
+    start_time = "2017-01-01"
     name = 'baidusearch'
-    # allowed_domains = ""
-    kw = '中日龙 -棒球 -中日龙队 -大阪 -球迷 -中日龙路 -襄阳 -职棒'  # 丰田合成（佛山）橡塑  上海大道包装隔热材料 阿尔发(广州)汽车配件
-    base_kw = "中日龙"
-    start_urls = ["http://tieba.baidu.com/f/search/res?qw={}&ie=utf-8".format(kw)]
+    # allowed_domains = "tieba.baidu.com"
+    # kw = "自动驾驶"
+    start_urls = BD_serch_urls.get_urls()
+    base_kw = "驾驶"
+
 
     def info(self, message, isPrint=True):
         # 控制台显示消息
@@ -40,6 +44,7 @@ class BaiDuTieBaSearch(Spider):
             self.logger.errorb(message)
 
     def parse(self, response):
+        # response.encoding = "utf-8"
         base_url = "http://tieba.baidu.com"
         for item in response.xpath('//div[@class="s_post"]'):
             url = item.xpath('./span/a/@href').extract_first()
@@ -49,14 +54,16 @@ class BaiDuTieBaSearch(Spider):
             if pushtime < self.start_time:
                 return
             full_url = base_url + easy_url
-            meta = {"pid": pid}
-            yield scrapy.Request(url=full_url,callback=self.parse_tiezi,meta=meta)
+            kw = parse.unquote(re.search(r'qw=(.*?)&',response.url).group(1))
+            meta = {"pid": pid,"kw":kw}
+            yield scrapy.http.Request(url=full_url,callback=self.parse_tiezi,meta=meta)
         next_pg = response.xpath('//a[text()="下一页>"]/@href')
         if next_pg:
             next_url = base_url + next_pg.extract_first()
             yield scrapy.Request(url=next_url, callback=self.parse)
 
     def parse_tiezi(self,response):
+        # response.encoding = "utf-8"
         bbsname = response.xpath('//div[@class="card_title "]/a/text()').extract_first()
         title = response.xpath('//h3/text()').extract_first()  # 某些吧标题在h1
         if title is None:
@@ -72,7 +79,8 @@ class BaiDuTieBaSearch(Spider):
             meta = {
                 "title": title,
                 "sonbbs_name": bbsname,
-                "comment_url": response.url
+                "comment_url": response.url,
+                "kw": response.meta["kw"]
             }
             # yield scrapy.Request(url=total_comment_url, callback=self.parse_comment, meta=meta)
             # 3.27若非主题帖,则只爬取当前回复贴
@@ -121,10 +129,11 @@ class BaiDuTieBaSearch(Spider):
                     return
                 item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 item['car_type'] = None
-                item['collection'] = "百度贴吧搜索({})".format(self.kw)
+                item['collection'] = "(百度贴吧搜索)自动驾驶"
                 item['usergender'] = None
                 item['userlocation'] = None
                 item['userage'] = None
+                item['kw'] = response.meta["kw"]
                 yield item
                 return 
 
@@ -159,10 +168,11 @@ class BaiDuTieBaSearch(Spider):
                         continue
                     item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     item['car_type'] = None
-                    item['collection'] = "百度贴吧搜索({})".format(self.kw)
+                    item['collection'] = "(百度贴吧搜索)自动驾驶"
                     item['usergender'] = None
                     item['userlocation'] = None
                     item['userage'] = None
+                    item['kw'] = response.meta["kw"]
                     yield item
 
         except Exception as e:
@@ -191,10 +201,11 @@ class BaiDuTieBaSearch(Spider):
                     item['push_time'] = pushtime
                     item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     item['car_type'] = None
-                    item['collection'] = "百度贴吧搜索({})".format(self.kw)
+                    item['collection'] = "(百度贴吧搜索)自动驾驶"
                     item['usergender'] = None
                     item['userlocation'] = None
                     item['userage'] = None
+                    item['kw'] = response.meta["kw"]
                     yield item
             # 获取全部评论
             else:
@@ -213,10 +224,11 @@ class BaiDuTieBaSearch(Spider):
                         item['push_time'] = pushtime
                         item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                         item['car_type'] = None
-                        item['collection'] = "百度贴吧搜索({})".format(self.kw)
+                        item['collection'] = "(百度贴吧搜索)自动驾驶"
                         item['usergender'] = None
                         item['userlocation'] = None
                         item['userage'] = None
+                        item['kw'] = response.meta["kw"]
                         yield item
         except Exception as e:
             self.error('【无评论】url:{}; line{}:{}'.format(response.url, e.__traceback__.tb_lineno, e))

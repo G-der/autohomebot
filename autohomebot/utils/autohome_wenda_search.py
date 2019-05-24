@@ -1,21 +1,26 @@
 #!/usr/bin/env python 3
 # encoding: utf-8
 from time import time
-from concurrent.futures import ThreadPoolExecutor
-import os
+import pymongo
 import requests
-import socket
-from requests.exceptions import ConnectionError
-from requests.exceptions import ReadTimeout
 from lxml import etree
 import re
-import json
-import csv
 import random
 import time
-import urllib3
-from multiprocessing import Pool
 from pymongo import MongoClient
+from urllib import parse
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+chrome_options = webdriver.ChromeOptions()
+# chrome_options.add_argument('--headless')
+# chrome_options.add_argument('--proxy-server=10.172.226.35:8080')
+chrome_options.add_argument('--ignore-certificate-errors')
+chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
+# chrome_options.add_argument('blink-settings=imagesEnabled=false')  # 禁止图片加载
+browser = webdriver.Chrome(chrome_options=chrome_options)
 
 USER_AGENT_LIST = [
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -73,6 +78,7 @@ USER_AGENT_LIST = [
 ]
 random_ua = ''
 proxy = None
+START_TIME = "2017-01-01"
 
 
 def get_randon_ua():
@@ -98,24 +104,32 @@ def get_proxie():
 def get_url_list(list_url, headers, proxy):
     if proxy:
         try:
-            topic_list_url = []
-            club_list = requests.get(list_url, headers=headers, timeout=8, proxies=proxy)
-            if '本田摩托车论坛' in str(club_list.text):  # 设置标志性文本防止被重定向
+            art_list_url = []
+            art_list = requests.get(list_url, headers=headers, timeout=8, proxies=proxy)
+            if '回答' in str(art_list.text):  # 设置标志性文本防止被重定向
                 print('解析成功，正在获取帖子链接', list_url)
-                pattern = re.compile('<dl.*?list_dl.*?lang.*?">.*?<a.*?href="(.*?)">.*?</dl>', re.S)
-                items = re.findall(pattern, club_list.text)
-                for item in items:
-                    if '#pvareaid' in item:
-                        pass
+                html = etree.HTML(art_list.text)
+                item_path = html.xpath("//*[@class='list-dl']")
+                for item in item_path:
+                    art_url = item.xpath('.//a/@href')[0]
+                    if "autohome" not in art_url:
+                        continue
                     else:
-                        topic_url = 'https://club.autohome.com.cn' + item
-                        topic_list_url.append(topic_url)
+                        # topic_url = 'https:' + item
+                        art_list_url.append(art_url)
+                next_path = html.xpath('.//a[@class="page-item-next"]/@href')
+                if next_path != []:
+                    next_url = 'https://sou.autohome.com.cn/zhidao' + next_path[0]
+                    return {"art_list_url": art_list_url,
+                            'next_url': next_url}
+                else:
+                    return {"art_list_url": art_list_url}
+
             else:
                 proxies = {
                     'https': 'https://' + str(get_proxie())
                 }
                 return get_url_list(list_url, headers, proxies)
-            return topic_list_url
         except:
             proxies = {
                 'https': 'https://' + str(get_proxie())
@@ -123,45 +137,72 @@ def get_url_list(list_url, headers, proxy):
             return get_url_list(list_url, headers, proxies)
 
 
-def get_one_page(url, headers, proxy):
-    print('分析帖子：', url)
-    try:
-        response = requests.get(url, headers=headers, proxies=proxy, timeout=8,
-                                verify=False)  # , allow_redirects=False verify是否验证服务器的SSL证书
-        if response.status_code == 200:
-            if '您的访问出现异常' not in response.text:
-                print('代理可用，执行下一步')
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-                return response.text
-            else:
-                print('您的访问出现异常，请更换代理IP')
-                proxy = {
-                    'https': 'https://' + str(get_proxie())
-                }
-                return get_one_page(url, headers, proxy)
+# def get_one_page(url, headers, proxy):
+#     print('分析帖子：', url)
+#     try:
+#         response = requests.get(url, headers=headers, proxies=proxy, timeout=8,
+#                                 verify=False)  # , allow_redirects=False verify是否验证服务器的SSL证书
+#         if response.status_code == 200:
+#             if '您的访问出现异常' not in response.text:
+#                 print('代理可用，执行下一步')
+#                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+#                 return response.text
+#             else:
+#                 print('您的访问出现异常，请更换代理IP')
+#                 proxy = {
+#                     'https': 'https://' + str(get_proxie())
+#                 }
+#                 return get_one_page(url, headers, proxy)
+#
+#         if response.status_code == 302:
+#             print('302')
+#             proxy = {
+#                 'https': 'https://' + str(get_proxie())
+#             }
+#             return get_one_page(url, headers, proxy)
+#
+#         if response.status_code == 404:
+#             print('404')
+#             if '文章被删除' in response.text:
+#                 return None
+#             else:
+#                 proxy = {
+#                     'https': 'https://' + str(get_proxie())
+#                 }
+#                 print('使用代理IP：', proxy)
+#                 return get_one_page(url, headers, proxy)
+#     except:
+#         proxy = {
+#             'https': 'https://' + str(get_proxie())
+#         }
+#         return get_one_page(url, headers, proxy)
 
-        if response.status_code == 302:
-            print('302')
-            proxy = {
-                'https': 'https://' + str(get_proxie())
-            }
-            return get_one_page(url, headers, proxy)
 
-        if response.status_code == 404:
-            print('404')
-            if '帖子被删除' in response.text:
-                return None
-            else:
-                proxy = {
-                    'https': 'https://' + str(get_proxie())
-                }
-                print('使用代理IP：', proxy)
-                return get_one_page(url, headers, proxy)
-    except:
-        proxy = {
-            'https': 'https://' + str(get_proxie())
-        }
-        return get_one_page(url, headers, proxy)
+def parse_art(url):
+    while True:
+        try:
+            browser.get(url)
+            Element = WebDriverWait(browser, 100).until(EC.presence_of_element_located((By.XPATH, "//h1")))
+            break
+        except:
+            pass
+    browser.implicitly_wait(10)
+    js = "var q=document.documentElement.scrollTop=10000"
+    # 执行脚本
+    browser.execute_script(js)
+    time.sleep(1.5 * random.uniform(1, 3))
+    html = browser.page_source
+    while "您的访问出现异常" in html:
+        print("出现验证，休眠")
+        browser.find_element_by_xpath('//div[@class="geetest_radar_tip"]')
+        time.sleep(1 * 60)
+        try:
+            browser.find_element_by_xpath('//div[@class="geetest_radar_tip"]').click()
+        except:
+            pass
+        browser.get(url)
+        html = browser.page_source
+    return html
 
 
 def parse_one_page(url, html):
@@ -183,7 +224,6 @@ def parse_one_page(url, html):
                 # print('帖子链接：' + url)
                 topic_title = info.xpath('//*[@id="consnav"]/span[4]/text()')[0]
                 TopicInfo['title'] = topic_title
-                print('标题：' + topic_title)
                 comtpath = info.xpath('.//div[@class="conttxt"]')[0]
                 comtstr = comtpath.xpath('string(.)').strip()
                 TopicInfo['comment_detail'] = comtstr
@@ -208,7 +248,7 @@ def parse_one_page(url, html):
                 TopicInfo['comment_url'] = url
                 TopicInfo['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 TopicInfo['car_type'] = None
-                TopicInfo['collection'] = "汽车之家(3.19)"
+                TopicInfo['collection'] = "(汽车之家问答)自动驾驶"
                 save_to_db(TopicInfo)
 
         title = tree.xpath('//div[@id="consnav"]/span[4]/text()')[0]
@@ -232,7 +272,7 @@ def parse_one_page(url, html):
             item['push_time'] = pushtime
             item['catch_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             item['car_type'] = None
-            item['collection'] = "汽车之家(4.1)"  # 设置存入表名
+            item['collection'] = "(汽车之家问答)自动驾驶"  # 设置存入表名
             item['usergender'] = usermsg[0]
             if userloc:
                 item['userlocation'] = userloc[0]
@@ -254,29 +294,31 @@ def parse_one_page(url, html):
             }
             proxy = {'https': 'https://' + str(get_proxie())}
             url = 'https://club.autohome.com.cn' + tree.xpath('//a[@class="afpage"]/@href')[1]
-            html = get_one_page(url, headers, proxy)
+            html = parse_art(url)
             if html:
                 parse_one_page(url, html)
     except Exception as e:
-        print("解析失败:",'url',e.__traceback__.tb_lineno,e)
-        item = {'collection': "汽车之家(4.1)", 'comment_url': "解析失败:"+url}  # 存入解析失败URL
+        print("解析失败:", 'url', e.__traceback__.tb_lineno, e)
+        item = {'collection': "(汽车之家)自动驾驶", 'comment_url': "解析失败:" + url}  # 存入解析失败URL
         return save_to_db(item)
 
 
-# def save_to_csv(item):
-#     headers = ['topic_url', 'forum', 'topic_title', 'topic_time', 'topic_views', 'topic_replys', 'topic_seal', 'user_name', 'user_url','user_topic_num', 'user_replys_num','user_from','user_car','followCount','praise_num']
-#     file_path = 'autohome_club.csv'
-#     if os.path.exists(file_path):
-#         with open(file_path, 'a', encoding='utf-8',newline='') as f:
-#             writer = csv.DictWriter(f, fieldnames=headers)
-#             writer.writerow(item)
-#             print('保存成功')
-#     else:
-#         with open(file_path, 'w+', encoding='utf-8',newline='') as f:
-#             writer = csv.DictWriter(f, fieldnames=headers)
-#             writer.writeheader()
-#             writer.writerow(item)
-#             print('保存成功')
+def parse_time(pushtime):
+    if re.search(r"天前", pushtime):
+        num = int(re.search(r"\d+", pushtime).group())
+        sec = num * 86400
+        pushtime = time.strftime("%Y-%m-%d", time.localtime(time.time() - sec))
+    if re.search('小时前', pushtime):
+        NUM = int(re.search('\d+', pushtime).group())
+        sec = NUM * 60 * 60
+        today = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - sec))
+        pushtime = today
+    if re.search('分钟前', pushtime):
+        NUM = int(re.search('\d+', pushtime).group())
+        sec = NUM * 60
+        today = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - sec))
+        pushtime = today
+    return pushtime
 
 
 def save_to_db(item):
@@ -290,16 +332,10 @@ def save_to_db(item):
         print('插入数据库出错,{},{}'.format(item['collection'], e))
 
 
-def get_one_url(page):
-    # for x in page:
-    url = 'https://club.autohome.com.cn/bbs/forum-o-210763-{}.html?orderby=dateline'.format(page)  # 设置抓取的板块URL和页数
-    return url
-
-
-def main(page):
+def main(url):
     headers = {
         'User-Agent': get_randon_ua(),
-        'Host': 'club.autohome.com.cn',
+        'Host': 'sou.autohome.com.cn',
         'Upgrade - Insecure - Requests': '1',
         'Accept': 'text / html, application / xhtml + xml, application / xml;q = 0.9, image / webp, image / apng, * / *;q = 0.8',
         'Accept - Encoding': 'gzip',
@@ -307,24 +343,48 @@ def main(page):
         'Cache - Control': 'max - age = 0',
         'Connection': 'close',
     }
+    conn = pymongo.MongoClient(host="localhost", port=27017)
+    db = conn["autohome"]
     proxy = {'https': 'https://' + str(get_proxie())}
-    url_list = get_one_url(page)
-    urls = get_url_list(url_list, headers, proxy)
-    for url in urls:
-        print('帖子：', url)
-        html = get_one_page(url, headers, proxy)
+    urls = get_url_list(url, headers, proxy)
+    for url in urls["art_list_url"]:
+        crawled_url = db["(汽车之家问答)自动驾驶"].find_one({"comment_url": url})
+        if crawled_url:
+            print(crawled_url["comment_url"], "已抓取")
+            continue
+        print('问答：', url)
+        # headers['Host'] = 'zhidao.autohome.com.cn'
+        # headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3'
+        # 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3'
+        html = parse_art(url)
         if html:
             parse_one_page(url, html)
+    try:
+        next_url = urls["next_url"]
+        if next_url:
+            main(next_url)
+    except:
+        pass
 
 
 if __name__ == '__main__':
-    start_time = time.time()
-    groups = []
-    for x in range(58, 1, -1):
-        groups.append(x)  # [x for x in range(89,0,-1)]
-    pool = Pool(3)
-    pool.map(main, groups)
-    pool.close()
-    pool.join()
-    end_time = time.time()
-    print(start_time, end_time - start_time)
+    KW_LIST = ["自动驾驶", "无人驾驶", "智能网联汽车",
+               "自动驾驶 L3级别", "自动驾驶 L4级别",
+               "无人驾驶出租车", "视觉融合自动驾驶",
+               "V2X 自动驾驶", "激光雷达 自动驾驶", "深度学习 自动驾驶",
+               "高精度地图 自动驾驶", "路径规划 自动驾驶", "AI 自动驾驶",
+               "算法 自动驾驶", "自动驾驶牌照", "自动驾驶示范区",
+               "自动驾驶示范运营", "自动泊车", "自动驾驶智慧交通",
+               "无人驾驶小镇", "自动驾驶5G示范区", "自动驾驶智能化"
+               ]
+    start_urls = []
+    for kw in KW_LIST:
+        gb_kw = kw.encode("gb2312")
+        url_kw = parse.quote(gb_kw)
+        start_urls.append("https://sou.autohome.com.cn/zhidao?q={}".format(url_kw))
+    for url in start_urls:
+        main(url)
+    # pool=Pool(3)
+    # pool.map(main,start_urls)
+    # pool.close()
+    # pool.join()

@@ -1,33 +1,32 @@
 import re
 import time
 from datetime import datetime
+from dateutil.parser import parse
 
 
-def time_change():
-    print(time.strftime("%Y/%m/%d", time.localtime(time.time())))
-    pushtime_str = ' 发表于：2019/2/12 11:15:00   '
-
-    pushtime = pushtime_str.replace(' 发表于：', '')
+def time_change(pushtime):
+    print(time.strftime("%Y-%m-%d", time.localtime(time.time())))
+    pushtime = str(pushtime)
     if re.search("昨天", pushtime):
-        yestoday = time.strftime("%Y/%m/%d", time.localtime(time.time() - 86400))
-        pushtime = pushtime.replace('昨天', yestoday)
+        yestoday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
+        pushtime = yestoday
     if re.search('前天', pushtime):
-        Byestoday = time.strftime("%Y/%m/%d", time.localtime(time.time() - 172800))
-        pushtime = pushtime.replace('前天', Byestoday)
-    if re.search('今天', pushtime):
-        Byestoday = time.strftime("%Y/%m/%d", time.localtime(time.time()))
-        pushtime = pushtime.replace('今天', Byestoday)
-    if re.search('小时前', pushtime):
-        NUM = int(re.search('\d+', pushtime).group())
-        sec = NUM * 60 * 60
-        today = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - sec))
-        pushtime = pushtime.replace("{} 小时前".format(NUM), today)
-    if re.search('分钟前', pushtime):
-        NUM = int(re.search('\d+', pushtime).group())
-        sec = NUM * 60
-        today = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - sec))
-        pushtime = pushtime.replace("{} 分钟前".format(NUM), today)
-    print(pushtime)
+        Byestoday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 172800))
+        pushtime = Byestoday
+    if re.search('今天|小时前|分钟前', pushtime):
+        today = time.strftime("%Y-%m-%d", time.localtime(time.time()))
+        pushtime = today
+    # if re.search('小时前', pushtime):
+    #     NUM = int(re.search('\d+', pushtime).group())
+    #     sec = NUM * 60 * 60
+    #     today = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - sec))
+    #     pushtime = today
+    # if re.search('分钟前', pushtime):
+    #     NUM = int(re.search('\d+', pushtime).group())
+    #     sec = NUM * 60
+    #     today = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - sec))
+    #     pushtime = today
+    return pushtime
 
 
 # 把datetime转成字符串
@@ -84,10 +83,29 @@ if __name__ == '__main__':
     # otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
     # print(otherStyleTime)
 
-    time1 = str(string_toDatetime("2017-01-22"))
-    tiem2 = '2017-01-02'
-    if time1 > tiem2:
+    # time1 = str(string_toDatetime("2017-01-22"))
+    # tiem2 = '2017-01-02'
+    # if time1 > tiem2:
+    #     print(True)
+    # else:
+    #     print(False)
+    # time1 = datetime.date()
+
+    # str = '2019年04月02日 13:53'
+    # date = time.strptime(str, "%Y年%m月%d日 %H:%M")
+    # print(date)
+    # date_format = time.strftime("%Y-%m-%d %H:%M", date)
+    # print(date_format)
+
+    time1 = parse(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    # print(time1)
+    # time.sleep(3)
+    # time2 = parse(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    # print((time2-time1).seconds)
+    print(type(time1.hour))
+    if time1.hour == 17:
         print(True)
     else:
         print(False)
-    time1 = datetime.date()
+
+

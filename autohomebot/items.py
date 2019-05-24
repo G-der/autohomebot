@@ -22,6 +22,10 @@ class BaseItem(scrapy.Item):
     bbs_name = scrapy.Field()  # 论坛名
     sonbbs_name = scrapy.Field()  # 子论坛名
     collection = scrapy.Field()  # 表名
+    kw = scrapy.Field()  # 搜索关键字
+    shop = scrapy.Field() #品牌
+    stars = scrapy.Field()
+    pinpai = scrapy.Field()
 
 
 class AutohomebotItem(scrapy.Item):
@@ -150,5 +154,11 @@ class ProduceItem(scrapy.Item):
     zhongpingCount = scrapy.Field()
     # 差评数
     chapingCount = scrapy.Field()
+    # 总评论数
+    allCount = scrapy.Field()
+
+
+
+
 
 

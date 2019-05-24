@@ -113,17 +113,17 @@ class AutohomebotDownloaderMiddleware(object):
         self.infoPrint('【是否重试】:' + ('是' if request.meta.get('retry') else '否'))
         # spider.info('【是否重试】:' + ('是' if request.meta.get('retry') else '否'))
 
-        old_proxy = request.meta.get('proxy')
-        if self.proxy is None or old_proxy is None or self.proxy == request.meta.get('proxy'):  # 请求被重来,换代理
-
-            self.infoPrint('【更换代理】')
-            # spider.info('【更换代理】')
-
-            proxy = self.get_proxy()
-            if proxy:
-                self.proxy = proxy
-
-        request.meta['proxy'] = self.proxy  # "http://wyiyxpjw-2:shxrrlwfql0n@95.216.1.195:80"
+        # old_proxy = request.meta.get('proxy')
+        # if self.proxy is None or old_proxy is None or self.proxy == request.meta.get('proxy'):  # 请求被重来,换代理
+        #
+        #     self.infoPrint('【更换代理】')
+        #     # spider.info('【更换代理】')
+        #
+        #     proxy = self.get_proxy()
+        #     if proxy:
+        #         self.proxy = proxy
+        #
+        # request.meta['proxy'] = self.proxy  # "http://wyiyxpjw-2:shxrrlwfql0n@95.216.1.195:80"
         spider.info('【request】' + self.proxy + ' URL:' + request.url)
 
     # 处理响应
